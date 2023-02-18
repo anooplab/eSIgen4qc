@@ -2,7 +2,12 @@ import sys
 import argparse
 import subprocess
 
-def read_energy(orca_output_file):
+
+def read_energy(orca_output_file: str) -> float:
+    """
+    Given a file path to an ORCA output file, return the final single point energy
+    from the file. If the energy cannot be found in the file, return None.
+    """
     for l in reversed(list(open(orca_output_file))):
         if 'FINAL SINGLE POINT ENERGY' in l:
             return float(l.strip().split()[4])
