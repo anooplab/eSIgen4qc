@@ -3,6 +3,7 @@ import argparse
 import subprocess
 
 
+<<<<<<< HEAD
 def read_energy(orca_output_file: str) -> float | None:
     """
     Reads the single point energy from a given ORCA output file
@@ -119,6 +120,16 @@ def count_imag(orca_output_file: str) -> bool | int | None:
             '***imaginary mode***' in line
             for line in reversed(list(open(orca_output_file)))
         )
+=======
+def read_energy(orca_output_file: str) -> float:
+    """
+    Given a file path to an ORCA output file, return the final single point energy
+    from the file. If the energy cannot be found in the file, return None.
+    """
+    for l in reversed(list(open(orca_output_file))):
+        if 'FINAL SINGLE POINT ENERGY' in l:
+            return float(l.strip().split()[4])
+>>>>>>> db283fc4eea410498f8d5e778e6185a492901706
     else:
         return None
 
