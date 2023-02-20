@@ -1,6 +1,7 @@
 import re
 import argparse
 import subprocess
+import docx
 
 
 def read_energy(orca_output_file: str) -> float | None:
@@ -22,8 +23,8 @@ def read_energy(orca_output_file: str) -> float | None:
     return next(
         (
             float(l.strip().split()[4])
-            for l in reversed(list(open(orca_output_file)))
-            if 'FINAL SINGLE POINT ENERGY' in l
+            for line in reversed(list(open(orca_output_file)))
+            if 'FINAL SINGLE POINT ENERGY' in line
         ),
         None,
     )
@@ -58,7 +59,8 @@ def read_free_energy(orca_output_file: str) -> float | None:
 
 def read_gibbs_correction(orca_output_file: str) -> float:
     """
-    This function reads the gibbs energy correction from the output file of the Orca quantum chemistry software.
+    This function reads the gibbs energy correction from the output file of the
+    Orca quantum chemistry software.
 
     Parameters
     ----------
@@ -123,33 +125,78 @@ def count_imag(orca_output_file: str) -> bool | int | None:
         return None
 
 
-def convert_to_docx(md_file, docx_file):
-    '''
-    Convert the markdown file to docx file using pandoc.
-    '''
-    subprocess.run(['pandoc', md_file, '-o', docx_file])
-
-
 def convert_to_tex(md_file, tex_file):
-    '''
+    """
     Convert the markdown file to tex file using pandoc.
-    '''
+    """
     subprocess.run(['pandoc', md_file, '-o', tex_file])
 
 
 def convert_to_pdf(md_file, pdf_file):
-    '''
+    """
     Convert the markdown file to pdf file using pandoc.
-    '''
+    """
     subprocess.run(['pandoc', md_file, '-o', pdf_file])
 
 
-def write_markdown(data, output_file):
+def write_docx(csv_string, docx_file):
+    import docx
+    # Split the CSV string into lines
+    lines = csv_string.strip().split('\n')
+
+    # Split each line on the comma separator to get the fields
+    data = [line.split(',') for line in lines]
+
+    # Create a new Word document
+    doc = docx.Document()
+
+    # Add a table to the document
+    table = doc.add_table(rows=len(data), cols=len(data[0]))
+
+    # Write the data to the table
+    for i, row in enumerate(data):
+        for j, value in enumerate(row):
+            table.cell(i, j).text = value
+
+    # Save the document to a file
+    doc.save(docx_file)
+
+
+def write_markdown(csv_string, output_file):
     """
-    Write the data to the output file.
+    Write the data to the output file in markdown format.
     """
+    # Split the CSV string into lines
+    lines = csv_string.strip().split('\n')
+
+    # Split each line on the comma separator to get the fields
+    data = [line.split(',') for line in lines]
+
+    # Calculate the maximum width for each column
+    max_widths = [len(field)+1 for field in data[0]]
+    data = list(data)
     with open(output_file, 'w') as f:
-        f.write(data)
+        for i, row in enumerate(data):
+            f.write(f"| {' | '.join(row)} |\n")
+            # Write the header row as a table
+            if i == 0:
+                f.write(f"|{'-|'.join('-' * w for w in max_widths)}-|\n")
+
+
+def print_tabular(csv_string):
+
+    # Split the CSV string into lines and fields
+    lines = csv_string.split('\n')
+    fields = [line.split(',') for line in lines]
+
+    # Find the maximum length of each field in each column
+    max_lengths = [max(len(field[i]) for field in fields) for i in
+                   range(len(fields[0]))]
+
+    # Print the fields with adjusted column widths
+    for field in fields:
+        print('  '.join('{:>{}}'.format(field[i], max_lengths[i]) for i in
+                        range(len(field))))
 
 
 def main():
@@ -170,12 +217,9 @@ def main():
 
     orca_output_files = args.output_file
     output_file = args.output
-    print("something")
 
     # create a string with the data
-    data = '| Name | Total Energy | Gibbs Free Energy | Free energy ' \
-           'correction | ZPE | NImag |\n| --- | --- | --- | --- | --- | --- | ' \
-           '--- |\n'
+    data = 'Name,Total Energy,Gibbs Free Energy,Free energy correction,ZPE,NImag'
 
     for orca_output_file in orca_output_files:
         e = read_energy(orca_output_file)
@@ -185,16 +229,16 @@ def main():
         nimag = count_imag(orca_output_file)
 
         # add a row to the string
-        row = f'| {re.sub(".out", "", orca_output_file)} | {e or 0:.5f} | {f or 0:.5f} | {fc or 0:.5f} | {zpe or 0:.5f} | {nimag or 0} |\n'
+        row = f'\n{re.sub(".out", "", orca_output_file)},' \
+              f'{e or 0:.5f},{f or 0:.5f},{fc or 0:.5f},{zpe or 0:.5f},{nimag or 0}'
         data += row
 
     if output_file is None:
-        print(data)
+        print_tabular(data)
     elif output_file.endswith('.md'):
         write_markdown(data, output_file)
     elif output_file.endswith('.docx'):
-        write_markdown(data, 'data.md')
-        convert_to_docx('data.md', output_file)
+        write_docx(data, output_file)
     elif output_file.endswith('.tex'):
         write_markdown(data, 'data.md')
         convert_to_tex('data.md', output_file)
