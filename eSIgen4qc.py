@@ -45,7 +45,7 @@ def read_free_energy(orca_output_file: str) -> float | None:
         The Gibbs free energy read from the ORCA output file
     None
         Returns None if no free energy is found in the ORCA output file
-    """   
+    """
     return next(
         (
             float(line.strip().split()[5])
@@ -105,7 +105,7 @@ def read_zpe(orca_output_file: str) -> float:
     )
 
 
-def count_imag(orca_output_file: str) -> bool | int | None:
+def count_imaginary_modes(orca_output_file: str) -> bool | int | None:
     """Count the number of imaginary frequencies in an ORCA output file.
 
     Args:
@@ -144,7 +144,7 @@ def write_docx(csv_string, docx_file):
     lines = csv_string.strip().split('\n')
 
     # Split each line on the comma separator to get the fields
-    data = [line.split(',') for line in lines]
+    csv_data = [line.split(',') for line in lines]
 
     # Create a new Word document
     doc = docx.Document()
@@ -153,15 +153,15 @@ def write_docx(csv_string, docx_file):
     table = doc.add_table(rows=len(data), cols=len(data[0]))
 
     # Write the data to the table
-    for i, row in enumerate(data):
-        for j, value in enumerate(row):
+    for i, the_row in enumerate(csv_data):
+        for j, value in enumerate(the_row):
             table.cell(i, j).text = value
 
     # Save the document to a file
     doc.save(docx_file)
 
 
-def write_markdown(csv_string, output_file):
+def write_markdown(csv_string, md_file):
     """
     Write the data to the output file in Markdown format.
     """
@@ -169,21 +169,19 @@ def write_markdown(csv_string, output_file):
     lines = csv_string.strip().split('\n')
 
     # Split each line on the comma separator to get the fields
-    data = [line.split(',') for line in lines]
+    csv_data = [line.split(',') for line in lines]
 
     # Calculate the maximum width for each column
-    max_widths = [len(field)+1 for field in data[0]]
-    data = list(data)
-    with open(output_file, 'w') as f:
-        for i, row in enumerate(data):
-            f.write(f"| {' | '.join(row)} |\n")
+    max_widths = [len(field) + 1 for field in data[0]]
+    with open(md_file, 'w') as fp:
+        for i, the_row in enumerate(list(csv_data)):
+            fp.write(f"| {' | '.join(the_row)} |\n")
             # Write the header row as a table
             if i == 0:
-                f.write(f"|{'-|'.join('-' * w for w in max_widths)}-|\n")
+                fp.write(f"|{'-|'.join('-' * w for w in max_widths)}-|\n")
 
 
 def print_tabular(csv_string):
-
     # Split the CSV string into lines and fields
     lines = csv_string.split('\n')
     fields = [line.split(',') for line in lines]
@@ -198,56 +196,47 @@ def print_tabular(csv_string):
                         range(len(field))))
 
 
-def main():
-    """
-    Read energies from ORCA output files and create a table suitable for
-    Supporting Information.
-    """
-    parser = argparse.ArgumentParser(description='''
-    Read energies from ORCA output files and create a table suitable for
-    Supporting Information 
-    ''',)
+parser = argparse.ArgumentParser(description='''
+Read energies from ORCA output files and create a table suitable for
+Supporting Information 
+''', )
 
-    parser.add_argument('output_file', nargs='+', help='OrCA output file(s) to '
-                                                       'read energies from')
-    parser.add_argument('-o', '--output', default=None, help='Output file')
+parser.add_argument('orca_files', nargs='+', help='OrCA output file(s) to '
+                                                  'read energies from')
+parser.add_argument('-o', '--output', default=None, help='Output file')
 
-    args = parser.parse_args()
+args = parser.parse_args()
 
-    orca_output_files = args.output_file
-    output_file = args.output
+orca_output_files = args.orca_files
+output_file = args.output
 
-    # create a string with the data
-    data = 'Name,Total Energy,Gibbs Free Energy,Free energy correction,ZPE,NImag'
+# create a string with the data
+data = 'Name,Total Energy,Gibbs Free Energy,Free energy correction,ZPE,NImag'
 
-    for orca_output_file in orca_output_files:
-        e = read_energy(orca_output_file)
-        f = read_free_energy(orca_output_file)
-        fc = read_gibbs_correction(orca_output_file)
-        zpe = read_zpe(orca_output_file)
-        nimag = count_imag(orca_output_file)
+for orca_file in orca_output_files:
+    e = read_energy(orca_file)
+    f = read_free_energy(orca_file)
+    fc = read_gibbs_correction(orca_file)
+    zpe = read_zpe(orca_file)
+    n_imag = count_imaginary_modes(orca_file)
 
-        # add a row to the string
-        row = f'\n{re.sub(".out", "", orca_output_file)},' \
-              f'{e or 0:.5f},{f or 0:.5f},{fc or 0:.5f},{zpe or 0:.5f},' \
-              f'{nimag or 0}'
-        data += row
+    # add a row to the string
+    row = f'\n{re.sub(".out", "", orca_file)},' \
+          f'{e or 0:.5f},{f or 0:.5f},{fc or 0:.5f},{zpe or 0:.5f},' \
+          f'{n_imag or 0}'
+    data += row
 
-    if output_file is None:
-        print_tabular(data)
-    elif output_file.endswith('.md'):
-        write_markdown(data, output_file)
-    elif output_file.endswith('.docx'):
-        write_docx(data, output_file)
-    elif output_file.endswith('.tex'):
-        write_markdown(data, 'data.md')
-        convert_to_tex('data.md', output_file)
-    elif output_file.endswith('.pdf'):
-        write_markdown(data, 'data.md')
-        convert_to_pdf('data.md', output_file)
-    else:
-        raise ValueError('Unknown output file format')
-
-
-if __name__ == '__main__':
-    main()
+if output_file is None:
+    print_tabular(data)
+elif output_file.endswith('.md'):
+    write_markdown(data, output_file)
+elif output_file.endswith('.docx'):
+    write_docx(data, output_file)
+elif output_file.endswith('.tex'):
+    write_markdown(data, 'data.md')
+    convert_to_tex('data.md', output_file)
+elif output_file.endswith('.pdf'):
+    write_markdown(data, 'data.md')
+    convert_to_pdf('data.md', output_file)
+else:
+    raise ValueError('Unknown output file format')
