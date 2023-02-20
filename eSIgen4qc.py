@@ -1,7 +1,6 @@
 import re
 import argparse
 import subprocess
-import docx
 
 
 def read_energy(orca_output_file: str) -> float | None:
@@ -22,7 +21,7 @@ def read_energy(orca_output_file: str) -> float | None:
     """
     return next(
         (
-            float(l.strip().split()[4])
+            float(line.strip().split()[4])
             for line in reversed(list(open(orca_output_file)))
             if 'FINAL SINGLE POINT ENERGY' in line
         ),
@@ -164,7 +163,7 @@ def write_docx(csv_string, docx_file):
 
 def write_markdown(csv_string, output_file):
     """
-    Write the data to the output file in markdown format.
+    Write the data to the output file in Markdown format.
     """
     # Split the CSV string into lines
     lines = csv_string.strip().split('\n')
@@ -230,7 +229,8 @@ def main():
 
         # add a row to the string
         row = f'\n{re.sub(".out", "", orca_output_file)},' \
-              f'{e or 0:.5f},{f or 0:.5f},{fc or 0:.5f},{zpe or 0:.5f},{nimag or 0}'
+              f'{e or 0:.5f},{f or 0:.5f},{fc or 0:.5f},{zpe or 0:.5f},' \
+              f'{nimag or 0}'
         data += row
 
     if output_file is None:
